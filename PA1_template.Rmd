@@ -8,18 +8,100 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r}
+  library("data.table");
+  library("xtable");
+  activity <- data.table(read.csv("data/activity.csv"));
+```
 
 
 ## What is mean total number of steps taken per day?
 
+- Total number of stpes per day
+```{r num_steps, results="asis"}
+num_of_steps = xtable(activity[!is.na(steps),list( num_of_steps = sum(steps)), by=date]);
+print(num_of_steps, type="html", include.rownames = FALSE);
+```
 
+- Total number of steps per day (histogram)
+```{r hist_num_steps,  fig.height=4, fig.width=8, fig.align='center'}
+hist(num_of_steps$num_of_steps, main = "Number of steps per day", xlab = "number of steps");
+```
+
+- Mean and Median for  number of stpes per day 
+```{r mean_median_steps, results='asis'}
+num_of_steps = xtable(activity[!is.na(steps),list(mean_num_steps = mean(steps),  median_num_steps = median(steps)), by=date]);
+print(num_of_steps, type="html", include.rownames = FALSE);
+```
 
 ## What is the average daily activity pattern?
 
+- Time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken
 
+```{r time_series_plot}
+  res <- activity[,mean(steps, na.rm = TRUE), by=interval];
+  plot(res$interval, res$V1, xlab = "Interval", ylab = "Number of steps", main = "Time series plot", type = "l");
+
+```
+
+- Maximum number of steps interval
+
+```{r max_num_steps_interval}
+  res <- activity[,mean(steps, na.rm = TRUE), by=interval];
+  paste("Maximam number of steps interval", res[res$V1 == max(res$V1)]$interval);
+```
 
 ## Imputing missing values
 
+- Total number of missing values in the dataset
+```{r total_number_missing_steps}
+  res <- activity[is.na(steps)];
+  paste("Total Number missing", nrow(res));
+```
 
+- filling in all of the missing values in the dataset and creating dataset with field value (2 && 3)
+
+```{r filling_missing}
+mean_by_interval <- activity[,mean(steps, na.rm = TRUE), by=interval];
+fill_activity <- activity;
+fill_activity[is.na(steps)]$steps <- as.integer(mean_by_interval[interval == fill_activity[is.na(steps)]$interval]$V1)
+```
+
+- Total number of steps per day (histogram) (Imputing missing value )
+
+```{r hist_num_steps_filled,  fig.height=4, fig.width=8, fig.align='center'}
+hist(fill_activity[,sum(steps),by=date]$V1, main = "Number of steps per day (Imputing missing value)", xlab = "number of steps");
+```
+
+- Mean and Median for number of stpes per day (Imputing missing value )
+```{r mean_median_steps_imputing, results='asis'}
+num_of_steps = xtable(fill_activity[!is.na(steps),list(mean_num_steps = mean(steps),  median_num_steps = median(steps)), by=date]);
+print(num_of_steps, type="html", include.rownames = FALSE);
+```
+
+Yes the value differ from the first part of assignment, median start to show up for some values instead of 0's.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+- New factor variable in the dataset with two levels – “weekday” and “weekend”
+
+```{r, message=F, warning=F}
+library("lubridate");
+library("dplyr");
+d <- ymd(activity$date);
+wk <- weekdays(d);
+is_week_end <- lapply(wk, function(x) { f <- "weekday"; if(x == "Sunday" || x == "Saturday") f <-"weekend"; f; });
+activity <- cbind(activity, as.factor(unlist(is_week_end)));
+activity <- rename(activity, type = V2);
+
+```
+
+- Time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken
+
+```{r time_series_plot_day_type, fig.width=8, message=F, warning=F}
+  library(lattice);
+  res <- activity[,mean(steps, na.rm = TRUE), by=c("type", "interval")];
+  xyplot(res$V1 ~ res$interval   | res$type,  xlab = "Interval", ylab = "Number of steps", main = "Time series plot based on type", type = "l" );
+
+```
+
